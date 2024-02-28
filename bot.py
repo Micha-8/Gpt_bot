@@ -102,7 +102,7 @@ def ask_gpt(message):
             return
         if message.text.lower() == 'end_question':
             end_q(message)
-            return 
+            return
         # НЕ продолжаем ответ и начинаем общаться заново
         if message.text.lower() != 'continue':
             gpt.clear_history()
