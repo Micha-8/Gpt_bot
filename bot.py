@@ -47,13 +47,16 @@ help_commands_send = '\n'.join(COMMANDS.values())
 
 @bot.message_handler(commands=['start'])
 def handle_start(message):
-    bot.send_message(
-        message.chat.id,
-        f'<b>Hi, {message.chat.first_name}!</b>\n'
-        f'{SAY_START}',
-        parse_mode='HTML',
-        reply_markup=main_markup)
-    logging.info("Бот работает")
+    try:
+       bot.send_message(
+           message.chat.id,
+           f'<b>Hi, {message.chat.first_name}!</b>\n'
+           f'{SAY_START}',
+           parse_mode='HTML',
+           reply_markup=main_markup)
+       logging.info("Бот работает")
+    except Exception as e:
+        logging.error(f"Функция start получила ошибку: {e}")
 
 
 @bot.message_handler(commands=['help'])
