@@ -1,16 +1,11 @@
 import telebot
-
-import os
-
-from dotenv import load_dotenv
-
 from telebot.types import ReplyKeyboardMarkup, KeyboardButton
+import os
+from dotenv import load_dotenv
+import logging
 
 from info import COMMANDS, COOL_STICKER, NOT_UNDERSTAND_MEDIA, NOT_UNDERSTAND_TEXT, SAY_START
-
 from gpt import GPT
-
-import logging
 
 load_dotenv()
 
@@ -84,7 +79,7 @@ def handle_help(message):
 
 
 def ask_gpt(message):
-    logging.debug(f"Полученный текст от пользователя: {message.text}")
+    logging.info(f"Полученный текст от пользователя: {message.text}")
     try:
         if message.content_type != "text":
             logging.warning("Получено не текстовое сообщение")
@@ -92,6 +87,9 @@ def ask_gpt(message):
                              parse_mode='HTML',
                              reply_markup=ask_markup
                              )
+            bot.register_next_step_handler(message, ask_gpt)
+            return
+
         request_tokens = gpt.count_tokens(message.text)
         if request_tokens > gpt.MAX_TOKENS:
             bot.send_message(message.chat.id, "The request does not match the number of tokens.\n"
@@ -101,47 +99,31 @@ def ask_gpt(message):
                              )
             logging.error('в запросе слишком много токенов')
             bot.register_next_step_handler(message, ask_gpt)
-        elif message.text.lower() == 'end_question':
+            return
+        if message.text.lower() == 'end_question':
             end_q(message)
+            return 
         # НЕ продолжаем ответ и начинаем общаться заново
-        elif message.text.lower() != 'continue':
+        if message.text.lower() != 'continue':
             gpt.clear_history()
-            # Формирование промта
-            json = gpt.make_promt(message.text)
-            # Отправка запроса
-            resp = gpt.send_request(json)
-            # Проверяем ответ на наличие ошибок и парсим его
-            response = gpt.process_resp(bot, message, resp)
-            if not response[0]:
-                bot.send_message(message.chat.id, "The request could not be completed...",
-                                 parse_mode='HTML',
-                                 reply_markup=ask_markup
-                                 )
-            # Выводим ответ или сообщение об ошибке
-            bot.send_message(message.chat.id, response[1],
+
+        json = gpt.make_promt(message.text)
+        # Отправка запроса
+        resp = gpt.send_request(json)
+        # Проверяем ответ на наличие ошибок и парсим его
+        response = gpt.process_resp(bot, message, resp)
+        if not response[0]:
+            bot.send_message(message.chat.id, "The request could not be completed...",
                              parse_mode='HTML',
                              reply_markup=ask_markup
                              )
-            logging.info("Бот успешно отправил ответ")
-            bot.register_next_step_handler(message, ask_gpt)
-        elif message.text.lower() == 'continue':
-            json = gpt.make_promt(message.text)
-            # Отправка запроса
-            resp = gpt.send_request(json)
-            # Проверяем ответ на наличие ошибок и парсим его
-            response = gpt.process_resp(bot, message, resp)
-            if not response[0]:
-                bot.send_message(message.chat.id, "The request could not be completed...",
-                                 parse_mode='HTML',
-                                 reply_markup=ask_markup
-                                 )
-            # Выводим ответ или сообщение об ошибке
-            bot.send_message(message.chat.id, response[1],
-                             parse_mode='HTML',
-                             reply_markup=ask_markup
-                             )
-            bot.register_next_step_handler(message, ask_gpt)
-            # мне не очень нравится такой подход, но по другому не работало (жду ваши варианты)
+        # Выводим ответ или сообщение об ошибке
+        bot.send_message(message.chat.id, response[1],
+                         parse_mode='HTML',
+                         reply_markup=ask_markup
+                         )
+        bot.register_next_step_handler(message, ask_gpt)
+        return
     except:
         bot.register_next_step_handler(message, ask_gpt)
 
@@ -196,9 +178,4 @@ def media_answer(message):
                      reply_markup=main_markup)
 
 
-# немного не нравится как я все сделал (поэтому и сдаю пораньше)
-# оч удобно делать requirements.txt через консольную команду pip freeze > requirements.txt
-# еще есть крутая идея для доработки проекта, но хз успею ли (вообщем сделать выбор языка на русском и на анлийском)
-# еще вы наверно заметили что проект на английском (а почему бы и нет), тк gpt на английском общается
-# (ну еще круто что шаблон на английском будет)
 bot.infinity_polling()
