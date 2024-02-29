@@ -1,0 +1,8 @@
+2024-02-29 23:59:53,009 - root - INFO - The start command is started
+2024-03-01 00:01:09,616 - root - INFO - Received text from the user: Hi
+2024-03-01 00:01:16,496 - root - ERROR - Something went wrong with question
+2024-03-01 00:01:34,120 - root - INFO - Received text from the user: /ask_gpt
+2024-03-01 00:01:52,243 - root - INFO - Received text from the user: 2+2?
+2024-03-01 00:04:06,117 - root - INFO - Received text from the user: continue
+2024-03-01 00:04:50,844 - root - INFO - Received text from the user: end_question
+2024-03-01 00:04:57,165 - root - ERROR - Something went wrong with question

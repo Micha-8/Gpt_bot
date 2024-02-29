@@ -40,23 +40,23 @@ def make_keyboard(items):
     return markup
 
 
-main_markup = make_keyboard(['/start', '/help', '/ask_gpt'])
-ask_markup = make_keyboard(['continue', 'end_question'])
+MAIN_MARKUP = make_keyboard(['/start', '/help', '/ask_gpt'])
+ASK_MARKUP = make_keyboard(['continue', 'end_question'])
 help_commands_send = '\n'.join(COMMANDS.values())
 
 
 @bot.message_handler(commands=['start'])
 def handle_start(message):
     try:
-       bot.send_message(
-           message.chat.id,
-           f'<b>Hi, {message.chat.first_name}!</b>\n'
-           f'{SAY_START}',
-           parse_mode='HTML',
-           reply_markup=main_markup)
-       logging.info("Бот работает")
+        bot.send_message(
+            message.chat.id,
+            f'<b>Hi, {message.chat.first_name}!</b>\n'
+            f'{SAY_START}',
+            parse_mode='HTML',
+            reply_markup=MAIN_MARKUP)
+        logging.info("The start command is started")
     except Exception as e:
-        logging.error(f"Функция start получила ошибку: {e}")
+        logging.error(f"The start function received an error: {e}")
 
 
 @bot.message_handler(commands=['help'])
@@ -64,7 +64,7 @@ def handle_help(message):
     bot.send_message(message.chat.id, f'<b>List of commands:</b>\n'
                                       f'{help_commands_send}',
                      parse_mode='HTML',
-                     reply_markup=main_markup
+                     reply_markup=MAIN_MARKUP
                      )
 
 
@@ -76,19 +76,20 @@ def handle_help(message):
                                       "if I don't answer you, then the answer is over"
                                       "Enter your question with the next message",
                      parse_mode='HTML',
-                     reply_markup=ask_markup
+                     reply_markup=ASK_MARKUP
                      )
     bot.register_next_step_handler(message, ask_gpt)
 
 
 def ask_gpt(message):
-    logging.info(f"Полученный текст от пользователя: {message.text}")
+    logging.info(f"Received text from the user: {message.text}")
+
     try:
         if message.content_type != "text":
-            logging.warning("Получено не текстовое сообщение")
+            logging.info("A non-text message was received")
             bot.send_message(message.chat.id, "Send prompt by text message",
                              parse_mode='HTML',
-                             reply_markup=ask_markup
+                             reply_markup=ASK_MARKUP
                              )
             bot.register_next_step_handler(message, ask_gpt)
             return
@@ -98,43 +99,43 @@ def ask_gpt(message):
             bot.send_message(message.chat.id, "The request does not match the number of tokens.\n"
                                               "Fix the query: ",
                              parse_mode='HTML',
-                             reply_markup=ask_markup
+                             reply_markup=ASK_MARKUP
                              )
-            logging.error('в запросе слишком много токенов')
+            logging.info('there are too many tokens in the request')
             bot.register_next_step_handler(message, ask_gpt)
             return
+
         if message.text.lower() == 'end_question':
             end_q(message)
             return
-        # НЕ продолжаем ответ и начинаем общаться заново
+
         if message.text.lower() != 'continue':
             gpt.clear_history()
 
         json = gpt.make_promt(message.text)
-        # Отправка запроса
         resp = gpt.send_request(json)
-        # Проверяем ответ на наличие ошибок и парсим его
         response = gpt.process_resp(bot, message, resp)
+
         if not response[0]:
             bot.send_message(message.chat.id, "The request could not be completed...",
                              parse_mode='HTML',
-                             reply_markup=ask_markup
+                             reply_markup=ASK_MARKUP
                              )
-        # Выводим ответ или сообщение об ошибке
         bot.send_message(message.chat.id, response[1],
                          parse_mode='HTML',
-                         reply_markup=ask_markup
+                         reply_markup=ASK_MARKUP
                          )
         bot.register_next_step_handler(message, ask_gpt)
         return
     except:
+        logging.error("Something went wrong with question")
         bot.register_next_step_handler(message, ask_gpt)
 
 
 def end_q(message):
     bot.send_message(message.chat.id, "The issue has been resolved",
                      parse_mode='HTML',
-                     reply_markup=main_markup
+                     reply_markup=MAIN_MARKUP
                      )
 
 
@@ -148,21 +149,21 @@ def send_logs(message):
 def say_hello(message):
     bot.send_message(message.chat.id, "Hi!",
 
-                     reply_markup=main_markup)
+                     reply_markup=MAIN_MARKUP)
 
 
 @bot.message_handler(content_types=['text'], func=filter_bye)
 def say_goodbye(message):
     bot.send_message(message.chat.id, "Bye!",
 
-                     reply_markup=main_markup)
+                     reply_markup=MAIN_MARKUP)
 
 
 @bot.message_handler(content_types=['sticker'])
 def sticker_answer(message):
     bot.send_message(message.chat.id, f"{COOL_STICKER}",
 
-                     reply_markup=main_markup)
+                     reply_markup=MAIN_MARKUP)
 
 
 @bot.message_handler(content_types=['text'])
@@ -171,14 +172,14 @@ def text_answer(message):
 
                      f"{NOT_UNDERSTAND_TEXT}",
 
-                     reply_markup=main_markup)
+                     reply_markup=MAIN_MARKUP)
 
 
 @bot.message_handler(content_types=['audio', 'video', 'voice', 'photo', 'document'])
 def media_answer(message):
     bot.send_message(message.chat.id, f"{NOT_UNDERSTAND_MEDIA}",
 
-                     reply_markup=main_markup)
+                     reply_markup=MAIN_MARKUP)
 
 
 bot.infinity_polling()

@@ -9,6 +9,7 @@ class GPT:
         self.URL = 'http://localhost:1234/v1/chat/completions'
         self.HEADERS = {"Content-Type": "application/json"}  # точно не знаю, но может что-то надо в env?
         self.MAX_TOKENS = 2048
+        self.TEMPERATURE = 0.3
         self.assistant_content = "Let's solve the task step by step: "
 
     # Подсчитываем количество токенов в промте
@@ -56,7 +57,7 @@ class GPT:
                 {"role": "user", "content": user_request},
                 {"role": "assistant", "content": self.assistant_content},
             ],
-            "temperature": 1.2,
+            "temperature": self.TEMPERATURE,
             "max_tokens": self.MAX_TOKENS,
         }
         return json
