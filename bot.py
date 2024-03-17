@@ -109,7 +109,7 @@ def choice_subject(message):
 
 
 def choice_level(message):
-    global gpt  # как избавиться от глобалов?
+    global gpt  
     uid = message.from_user.id
     if message.text == 'Beginner':
         level = 'beginner'
@@ -250,5 +250,4 @@ def media_answer(message):
                      reply_markup=MAIN_MARKUP)
 
 
-# опять второй проект не дается, но надеюсь на правки
 bot.infinity_polling()
