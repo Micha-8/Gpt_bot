@@ -1,27 +1,29 @@
 import requests
 from transformers import AutoTokenizer
-import telebot
+from config import URL, HEADERS, MAX_TOKENS, TEMPERATURE, ASSISTANT_CONTENT, GPT_MODEL
+import http
 
 
 class GPT:
-    def __init__(self, system_content):
-        self.system_content = system_content
-        self.URL = 'http://localhost:1234/v1/chat/completions'
-        self.HEADERS = {"Content-Type": "application/json"}  # точно не знаю, но может что-то надо в env?
-        self.MAX_TOKENS = 2048
-        self.TEMPERATURE = 0.3
-        self.assistant_content = "Let's solve the task step by step: "
+    def __init__(self, subject: str, level: str):
+        self.subject = subject
+        self.level = level
+        self.URL = URL
+        self.HEADERS = HEADERS
+        self.MAX_TOKENS = MAX_TOKENS
+        self.TEMPERATURE = TEMPERATURE
+        self.assistant_content = ASSISTANT_CONTENT
 
     # Подсчитываем количество токенов в промте
     @staticmethod
     def count_tokens(prompt):
-        tokenizer = AutoTokenizer.from_pretrained("mistralai/Mistral-7B-Instruct-v0.1")
+        tokenizer = AutoTokenizer.from_pretrained(GPT_MODEL)
         return len(tokenizer.encode(prompt))
 
     # Проверка ответа на возможные ошибки и его обработка
     def process_resp(self, bot, message, response) -> [bool, str]:
         # Проверка статус кода
-        if response.status_code != 200:
+        if response.status_code != http.HTTPStatus.OK:
             self.clear_history()
             return False, f"Error: {response.status_code}"
 
@@ -53,9 +55,9 @@ class GPT:
     def make_promt(self, user_request):
         json = {
             "messages": [
-                {"role": "system", "content": self.system_content},
+                {"role": "system", "content": f"You're a {self.subject} assistant, Answer me how {self.level}"},
                 {"role": "user", "content": user_request},
-                {"role": "assistant", "content": self.assistant_content},
+                {"role": "assistant", "content": self.assistant_content}
             ],
             "temperature": self.TEMPERATURE,
             "max_tokens": self.MAX_TOKENS,

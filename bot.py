@@ -1,11 +1,14 @@
 import telebot
-from telebot.types import ReplyKeyboardMarkup, KeyboardButton
 import os
 from dotenv import load_dotenv
 import logging
 
-from info import COMMANDS, COOL_STICKER, NOT_UNDERSTAND_MEDIA, NOT_UNDERSTAND_TEXT, SAY_START
+from info import (
+    COOL_STICKER, NOT_UNDERSTAND_MEDIA, NOT_UNDERSTAND_TEXT, SAY_START, SAY_RULES, users, MAIN_MARKUP, ASK_MARKUP,
+    HELP_COMMANDS_SEND, SUBJECT_MARKUP, LEVEL_MARKUP
+)
 from gpt import GPT
+from database import add_user, update_subject, update_level, update_answer, update_task
 
 load_dotenv()
 
@@ -20,7 +23,15 @@ logging.basicConfig(
     filemode="w",
 )
 
-gpt = GPT(system_content="You are a friendly nice helper")
+
+def check_user(uid, message):
+    if uid not in users:
+        users[uid] = {}
+        users[uid]['subject'] = ''
+        users[uid]['level'] = ''
+        users[uid]['question'] = ''
+        users[uid]['answer'] = ''
+        add_user('info.db', message.from_user.id, '', '', '', '')
 
 
 def filter_hello(message):
@@ -31,23 +42,11 @@ def filter_bye(message):
     return 'bye' in message.text.lower()
 
 
-def make_keyboard(items):
-    markup = ReplyKeyboardMarkup(resize_keyboard=True)
-
-    for item in items:
-        markup.add(KeyboardButton(item))
-
-    return markup
-
-
-MAIN_MARKUP = make_keyboard(['/start', '/help', '/ask_gpt'])
-ASK_MARKUP = make_keyboard(['continue', 'end_question'])
-help_commands_send = '\n'.join(COMMANDS.values())
-
-
 @bot.message_handler(commands=['start'])
 def handle_start(message):
     try:
+
+        uid = message.from_user.id
         bot.send_message(
             message.chat.id,
             f'<b>Hi, {message.chat.first_name}!</b>\n'
@@ -55,6 +54,7 @@ def handle_start(message):
             parse_mode='HTML',
             reply_markup=MAIN_MARKUP)
         logging.info("The start command is started")
+        check_user(message.from_user.id, message)
     except Exception as e:
         logging.error(f"The start function received an error: {e}")
 
@@ -62,28 +62,92 @@ def handle_start(message):
 @bot.message_handler(commands=['help'])
 def handle_help(message):
     bot.send_message(message.chat.id, f'<b>List of commands:</b>\n'
-                                      f'{help_commands_send}',
+                                      f'{HELP_COMMANDS_SEND}',
                      parse_mode='HTML',
                      reply_markup=MAIN_MARKUP
                      )
+    check_user(message.from_user.id, message)
+
+
+@bot.message_handler(commands=['configure_gpt'])
+def handle_help(message):
+    bot.send_message(message.chat.id, 'Choose a subject for which the bot will help you',
+                     parse_mode='HTML',
+                     reply_markup=SUBJECT_MARKUP
+                     )
+
+    bot.register_next_step_handler(message, choice_subject)
+
+
+def choice_subject(message):
+    check_user(message.from_user.id, message)
+    uid = message.from_user.id
+    global subject
+    if message.text == 'Math':
+        bot.send_message(message.chat.id, 'Choose the level of explanation',
+                         parse_mode='HTML',
+                         reply_markup=LEVEL_MARKUP
+                         )
+        subject = 'math'
+        users[uid]['subject'] = message.text
+        update_subject('info.db', message.from_user.id, message.text)
+        bot.register_next_step_handler(message, choice_level)
+    elif message.text == 'Geometry':
+        bot.send_message(message.chat.id, 'Choose the level of explanation',
+                         parse_mode='HTML',
+                         reply_markup=LEVEL_MARKUP
+                         )
+        subject = 'geometry'
+        users[uid]['subject'] = message.text
+        update_subject('info.db', message.from_user.id, message.text)
+        bot.register_next_step_handler(message, choice_level)
+    else:
+        bot.send_message(message.chat.id, 'Choose an subject from the list',
+                         parse_mode='HTML',
+                         reply_markup=ASK_MARKUP
+                         )
+
+
+def choice_level(message):
+    global gpt  # как избавиться от глобалов?
+    uid = message.from_user.id
+    if message.text == 'Beginner':
+        level = 'beginner'
+        gpt = GPT(subject, level)
+        update_level('info.db', message.from_user.id, message.text)
+        users[uid]['level'] = message.text
+    elif message.text == 'Professional':
+        level = 'professional'
+        gpt = GPT(subject, level)
+        users[uid]['level'] = message.text
+        update_level('info.db', message.from_user.id, message.text)
+    else:
+        bot.send_message(message.chat.id, 'Choose an level from the list',
+                         parse_mode='HTML',
+                         reply_markup=MAIN_MARKUP
+                         )
 
 
 @bot.message_handler(commands=['ask_gpt'])
-def handle_help(message):
-    bot.send_message(message.chat.id, "You can ask me anything you want.\n"
-                                      "-If you write continue, I will continue to explain the task\n"
-                                      "-To end the dialogue, write the end_question\n"
-                                      "if I don't answer you, then the answer is over"
-                                      "Enter your question with the next message",
-                     parse_mode='HTML',
-                     reply_markup=ASK_MARKUP
-                     )
-    bot.register_next_step_handler(message, ask_gpt)
+def handle_ask_gpt(message):
+    uid = message.from_user.id
+    check_user(uid, message)
+    if users[uid]['subject'] == '' or users[uid]['level'] == '':
+        bot.send_message(message.chat.id, 'First, select the subject and level',
+                         parse_mode='HTML',
+                         reply_markup=MAIN_MARKUP
+                         )
+    else:
+        bot.send_message(message.chat.id, f'{SAY_RULES}',
+                         parse_mode='HTML',
+                         reply_markup=ASK_MARKUP
+                         )
+        bot.register_next_step_handler(message, ask_gpt)
 
 
 def ask_gpt(message):
     logging.info(f"Received text from the user: {message.text}")
-
+    update_task('info.db', message.from_user.id, message.text)
     try:
         if message.content_type != "text":
             logging.info("A non-text message was received")
@@ -101,7 +165,7 @@ def ask_gpt(message):
                              parse_mode='HTML',
                              reply_markup=ASK_MARKUP
                              )
-            logging.info('there are too many tokens in the request')
+            logging.info("there are too many characters in the request")
             bot.register_next_step_handler(message, ask_gpt)
             return
 
@@ -125,6 +189,7 @@ def ask_gpt(message):
                          parse_mode='HTML',
                          reply_markup=ASK_MARKUP
                          )
+        update_answer('info.db', message.from_user.id, response[1])
         bot.register_next_step_handler(message, ask_gpt)
         return
     except:
@@ -141,8 +206,11 @@ def end_q(message):
 
 @bot.message_handler(commands=['debug'])
 def send_logs(message):
-    with open("log_file.txt", "rb") as f:
-        bot.send_document(message.chat.id, f)
+    try:
+       with open("log_file.txt", "rb") as f:
+           bot.send_document(message.chat.id, f)
+    except:
+        bot.send_message(message.chat.id, 'something went wrong')
 
 
 @bot.message_handler(content_types=['text'], func=filter_hello)
@@ -182,4 +250,5 @@ def media_answer(message):
                      reply_markup=MAIN_MARKUP)
 
 
+# опять второй проект не дается, но надеюсь на правки
 bot.infinity_polling()
