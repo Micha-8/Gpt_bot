@@ -1,3 +1,5 @@
+![GitHub watchers](https://img.shields.io/github/watchers/Micha-8/Gpt_bot?style=flat)
+![GitHub last commit](https://img.shields.io/github/last-commit/Micha-8/Gpt_bot)
 # Бот-помощник
  Телеграмм-бот помощник по выбранной пользователем теме на базе нейросети с базой данных
 
